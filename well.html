@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="rw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RWF Market</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{
+  --accent:#4e61c9;
+  --text:#fff;
+  --muted:rgba(255,255,255,0.8);
+  --card-bg:rgba(255,255,255,0.07);
+}
+body{ margin:0; font-family:Inter,Arial,sans-serif; background:#0a1122; color:var(--text); display:flex; overflow:hidden; }
+#sidebar{ width:250px; background:rgba(0,0,0,0.4); backdrop-filter:blur(6px); padding:20px; position:fixed; left:-250px; top:0; bottom:0; transition:.3s ease; z-index:1000; box-shadow:5px 0 25px rgba(0,0,0,0.5);}
+#sidebar.show{ left:0; }
+#sidebar .brand{ font-size:20px; font-weight:700; margin-bottom:15px; display:flex; align-items:center; gap:10px;}
+#sidebar .iconBox{ width:32px;height:32px; background:var(--accent); border-radius:6px;}
+#sidebar button{ width:100%; padding:10px 12px; background:transparent; border:none; border-radius:8px; color:var(--text); cursor:pointer; text-align:left; font-size:15px; margin:6px 0; transition:.2s;}
+#sidebar button:hover{ background:rgba(255,255,255,0.1);}
+#toggleSidebar{ position:fixed; top:12px; left:12px; background:var(--accent); border:none; padding:10px 14px; border-radius:8px; font-weight:600; cursor:pointer; z-index:1100;}
+#main{ flex:1; margin-left:0; padding:25px; overflow-y:auto; width:100%; box-sizing:border-box; transition:.3s;}
+#sidebar.show + #main{ margin-left:250px;}
+.card{ background:var(--card-bg); padding:18px; border-radius:12px; margin-bottom:16px;}
+h1,h2,h3{ margin-top:0; }
+p,li{ color:var(--muted); }
+select,input,button,textarea{ font-size:14px; }
+input,select,textarea{ padding:10px; border-radius:8px; border:1px solid rgba(255,255,255,0.2); margin:8px 0; width:90%; background:rgba(255,255,255,0.12); color:#fff;}
+button{ padding:10px; border-radius:8px; border:none; cursor:pointer;}
+.converter button, .calc button{ background:#10a80b; color:white; margin-top:8px;}
+.result{ margin-top:12px; font-size:18px; font-weight:700; color:#05f811;}
+.tips ul, .glossary ul{ padding-left:18px;}
+.tips li, .glossary li{ margin:8px 0;}
+.dark-mode{ background:#041226; color:#fff;}
+
+/* Alerts Animation */
+#alertsUl li { opacity:0; transform:translateX(-20px); animation: slideFade 0.5s forwards; margin-bottom:6px;}
+@keyframes slideFade { to { opacity:1; transform:translateX(0); } }
+
+/* Popup Alerts */
+.popupAlert{
+  position:fixed; top:20px; right:20px; padding:12px 18px; background:#10a80b; color:#fff; border-radius:8px; opacity:0; transition:0.5s;
+}
+</style>
+</head>
+<body>
+
+<button id="toggleSidebar" onclick="toggleSidebar()">☰ Menu</button>
+
+<aside id="sidebar">
+  <div class="brand"><div class="iconBox"></div>RWF Market</div>
+  <button onclick="loadSection('exchange')">💱 Live Exchange Rates</button>
+  <button onclick="loadSection('trends')">📊 Market Trends</button>
+  <button onclick="loadSection('alerts')">🔔 Price Alerts</button>
+  <button onclick="loadSection('calculator')">🧾 Loan / Investment Calculator</button>
+  <button onclick="loadSection('commodities')">📈 Commodities / Portfolio</button>
+  <button onclick="loadSection('tips')">💰 Business Tips</button>
+  <button onclick="loadSection('contact')">📨 Contact Support</button>
+  <button onclick="loadSection('newsletter')">✉️ Newsletter Signup</button>
+  <button onclick="loadSection('learning')">🎓 Learning / Glossary</button>
+  <button onclick="loadSection('about')">ℹ️ About Us</button>
+  <button onclick="toggleDarkMode()">🌓 Dark/Light Mode</button>
+</aside>
+
+<main id="main">
+  <div id="content">
+    <h1>Welcome to RWF Market</h1>
+    <p class="card">Kanda Menu hejuru urebe sections zose zigufasha mu business na trading.</p>
+  </div>
+</main>
+
+<script>
+const sidebar = document.getElementById("sidebar");
+function toggleSidebar(){ sidebar.classList.toggle("show"); }
+
+let dark=false;
+function toggleDarkMode(){ dark=!dark; document.body.classList.toggle("dark-mode", dark); }
+
+let alerts=[];
+
+// Popup alert function
+function showPopup(msg){
+  const popup=document.createElement('div');
+  popup.textContent=msg;
+  popup.className="popupAlert";
+  document.body.appendChild(popup);
+  setTimeout(()=>{popup.style.opacity=1;},10);
+  setTimeout(()=>{popup.style.opacity=0; setTimeout(()=>popup.remove(),500);},4000);
+}
+
+async function loadSection(sec){
+  document.getElementById("sidebar").classList.remove("show");
+  const c=document.getElementById("content");
+  c.innerHTML="";
+
+  // --- Live Exchange Rates ---
+  if(sec==="exchange"){
+    c.innerHTML=`<h2>💱 Live Exchange Rates</h2>
+      <div class="card converter">
+        <select id="from"></select>
+        <select id="to"></select>
+        <input type="number" id="amount" placeholder="Shyiramo umubare">
+        <button onclick="convertNow()">Convert</button>
+        <div class="result" id="result">Ibisubizo...</div>
+      </div>`;
+    const data=await fetch("https://open.er-api.com/v6/latest/USD").then(r=>r.json());
+    let opt=""; for(let x in data.rates) opt+=`<option>${x}</option>`;
+    document.getElementById("from").innerHTML=opt; document.getElementById("to").innerHTML=opt;
+    from.value="USD"; to.value="RWF";
+    window.convertNow=async()=>{ 
+      const res=await fetch(`https://open.er-api.com/v6/latest/${from.value}`).then(r=>r.json());
+      result.innerHTML=`${amount.value} ${from.value} = <span>${(amount.value*res.rates[to.value]).toLocaleString()} ${to.value}</span>`;
+    }
+    return;
+  }
+
+  // --- Market Trends ---
+  if(sec==="trends"){
+    c.innerHTML=`<h2>📊 Market Trends</h2>
+      <label>Base Currency:</label>
+      <select id="baseCurrency">
+        <option value="USD">USD</option>
+        <option value="EUR">EUR</option>
+        <option value="GBP">GBP</option>
+        <option value="KES">KES</option>
+        <option value="JPY">JPY</option>
+      </select>
+      <label>Time Range:</label>
+      <select id="timeRange">
+        <option value="7">7 Days</option>
+        <option value="30">30 Days</option>
+        <option value="90">90 Days</option>
+      </select>
+      <div class="card"><canvas id="trendChart" height="250"></canvas></div>`;
+
+    let chart;
+    async function fetchHistorical(base, days){
+      const end = new Date(); const start = new Date();
+      start.setDate(end.getDate()-days+1);
+      const startDate = start.toISOString().split('T')[0];
+      const endDate = end.toISOString().split('T')[0];
+      try{
+        const res = await fetch(`https://api.exchangerate.host/timeseries?start_date=${startDate}&end_date=${endDate}&base=${base}&symbols=RWF`);
+        const data = await res.json();
+        const dates = Object.keys(data.rates);
+        const values = dates.map(d=>data.rates[d].RWF);
+        return {dates, values};
+      } catch(e){ alert("API Error!"); return {dates:[], values:[]}; }
+    }
+
+    async function initChart(base, days){
+      const {dates, values} = await fetchHistorical(base, days);
+      const ctx = document.getElementById("trendChart");
+      if(chart) chart.destroy();
+      const gradient = ctx.getContext('2d').createLinearGradient(0,0,0,250);
+      gradient.addColorStop(0,'rgba(78,97,201,0.5)');
+      gradient.addColorStop(1,'rgba(78,97,201,0)');
+      chart = new Chart(ctx,{
+        type:"line",
+        data:{labels:dates, datasets:[{label:`${base} → RWF`, data:values, borderColor:"rgba(122,162,217,1)", backgroundColor:gradient, tension:0.4, pointRadius:5, pointHoverRadius:8}]},
+        options:{responsive:true, animation:{duration:1500,easing:'easeOutQuart'}, plugins:{tooltip:{mode:'index',intersect:false}}, scales:{y:{ticks:{color:'#fff'}}, x:{ticks:{color:'#ddd'}}}}
+      });
+    }
+
+    document.getElementById("baseCurrency").addEventListener("change",()=>{initChart(baseCurrency.value,parseInt(timeRange.value));});
+    document.getElementById("timeRange").addEventListener("change",()=>{initChart(baseCurrency.value,parseInt(timeRange.value));});
+    initChart("USD",7);
+    return;
+  }
+
+  // --- Price Alerts ---
+  if(sec==="alerts"){
+    c.innerHTML=`<h2>🔔 Price Alerts</h2>
+      <label>Currency Pair:</label>
+      <select id="alertPair">
+        <option value="USD-RWF">USD → RWF</option>
+        <option value="EUR-RWF">EUR → RWF</option>
+        <option value="GBP-RWF">GBP → RWF</option>
+        <option value="KES-RWF">KES → RWF</option>
+        <option value="JPY-RWF">JPY → RWF</option>
+      </select>
+      <label>Condition:</label>
+      <select id="alertCondition">
+        <option value="above">Above</option>
+        <option value="below">Below</option>
+      </select>
+      <label>Price:</label><input type="number" id="alertPrice" placeholder="Enter price in RWF">
+      <label>Email (optional):</label><input type="email" id="alertEmail" placeholder="Enter email">
+      <button onclick="setAlert()">Set Alert</button>
+      <div id="alertList" style="margin-top:15px;"><h4>Active Alerts:</h4><ul id="alertsUl"></ul></div>`;
+    
+    window.setAlert=()=>{
+      const pair = alertPair.value; const condition = alertCondition.value;
+      const price = parseFloat(alertPrice.value); const email = alertEmail.value;
+      if(isNaN(price)||price<=0){alert("Shyiramo price yemewe!");return;}
+      const a={pair,condition,price,email}; alerts.push(a); renderAlerts(); showPopup(`Alert yashyizweho: ${pair} ${condition} ${price}`); 
+    }
+    function renderAlerts(){ const ul=document.getElementById("alertsUl"); ul.innerHTML=""; alerts.forEach(a=>{const li=document.createElement("li"); li.textContent=`${a.pair} → ${a.condition} ${a.price} RWF ${a.email?` (Notify:${a.email})`:''}`; ul.appendChild(li);}); }
+    return;
+  }
+
+  // --- Other sections (calculator, commodities, tips, contact, newsletter, learning, about) remain similar as before ---
+  if(sec==="calculator"){c.innerHTML=`<h2>🧾 Loan / Investment Calculator</h2><input type="number" id="p" placeholder="Principal (RWF)"><input type="number" id="r" placeholder="Rate (%)"><input type="number" id="t" placeholder="Time (years)"><button onclick="loanRes.textContent='Inyungu: '+(p.value*r.value/100*t.value).toLocaleString()+' RWF'">Calculate</button><div class="result" id="loanRes">...</div>`; return;}
+  if(sec==="commodities"){c.innerHTML=`<h2>📈 Commodities / Portfolio</h2><div class="card"><p>Sample prices: Coffee 1200 RWF/kg, Oil 950 RWF/litre, Gold 65000 RWF/10g</p></div><div class="card"><canvas id="commodityChart" height="250"></canvas></div>`; new Chart(document.getElementById("commodityChart"),{type:"bar",data:{labels:["Coffee","Oil","Gold"],datasets:[{label:"Price RWF",data:[1200,950,65000],backgroundColor:["#4e61c9","#10a80b","#ffbb33"]}]},options:{scales:{y:{beginAtZero:true}}}}); return;}
+  if(sec==="tips"){c.innerHTML=`<h2>💰 Business Tips</h2><div class="card tips"><ul><li>Fata amahirwe yo gukurikirana isoko buri munsi.</li><li>Bika inyungu yawe byibuze 20% mu savings.</li><li>Wige ibijyanye n’imari kugira ngo ufate decision nziza.</li><li>Irinde ideni rirenze ubushobozi bwawe bwo kuryishyura.</li></ul></div>`; return;}
+  if(sec==="contact"){c.innerHTML=`<h2>📨 Contact Support</h2><div class="card"><input type="text" id="name" placeholder="Name"><input type="email" id="email" placeholder="Email"><textarea id="msg" placeholder="Message" style="width:90%;padding:10px;border-radius:8px;margin-top:8px;"></textarea><button onclick="alert('Message sent!')">Send</button></div>`; return;}
+  if(sec==="newsletter"){c.innerHTML=`<h2>✉️ Newsletter Signup</h2><div class="card"><input type="email" id="newsletterEmail" placeholder="Enter your email"><button onclick="alert('Signed up!')">Subscribe</button></div>`; return;}
+  if(sec==="learning"){c.innerHTML=`<h2>🎓 Learning / Glossary</h2><div class="card glossary"><ul><li><b>Forex:</b> Foreign exchange trading.</li><li><b>Interest:</b> Inyungu ku mafaranga cyangwa loan.</li><li><b>ROI:</b> Return on investment.</li></ul></div>`; return;}
+  if(sec==="about"){c.innerHTML=`<h2>ℹ️ About Us</h2><div class="card"><p>RWF Market ikwereka exchange rates, market trends, calculators, tips, alerts, n'ibindi byose byagufasha muri business yawe.</p></div>`; return;}
+}
+
+// Check alerts in background
+setInterval(async ()=>{
+  for(let a of [...alerts]){
+    const [from,to] = a.pair.split("-");
+    const res = await fetch(`https://api.exchangerate.host/latest?base=${from}&symbols=${to}`);
+    const rate = (await res.json()).rates[to];
+    if((a.condition==='above' && rate>a.price)||(a.condition==='below' && rate<a.price)){
+      showPopup(`⚠️ ${a.pair} is now ${rate.toFixed(2)} RWF`);
+      alerts=alerts.filter(x=>x!==a);
+    }
+  }
+},60000);
+
+</script>
+</body>
+</html>

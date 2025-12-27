@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="rw">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RWF Market — Market Trends</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body{
+  margin:0; padding:0; font-family:Inter,Arial,sans-serif;
+  background:#0a1122; color:#f50e0e; display:flex; flex-direction:column; align-items:center; padding:20px;
+}
+h2{ margin-bottom:10px; }
+.card{ background:rgba(255,255,255,0.07); padding:20px; border-radius:12px; width:100%; max-width:700px; box-sizing:border-box; margin-bottom:20px;}
+select{ padding:10px 12px; border-radius:8px; border:none; margin-bottom:15px; font-size:16px; width:150px; background:rgba(255,255,255,0.12); color:#0a0a0a;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h2>📊 Market Trends & 🔔 Price Alerts</h2>
+
+  <!-- Market Trends -->
+  <h3>Market Trends</h3>
+  <label>Base Currency:</label>
+  <select id="baseCurrency">
+    <option value="USD">USD</option>
+    <option value="EUR">EUR</option>
+    <option value="GBP">GBP</option>
+    <option value="KES">KES</option>
+    <option value="JPY">JPY</option>
+  </select>
+
+  <label>Time Range:</label>
+  <select id="timeRange">
+    <option value="7">7 Days</option>
+    <option value="30">30 Days</option>
+    <option value="90">90 Days</option>
+  </select>
+
+  <canvas id="trendChart" height="250"></canvas>
+
+  <hr>
+
+  <!-- Price Alerts -->
+  <h3>Price Alerts</h3>
+  <label>Currency Pair:</label>
+  <select id="alertPair">
+    <option value="USD-RWF">USD → RWF</option>
+    <option value="EUR-RWF">EUR → RWF</option>
+    <option value="GBP-RWF">GBP → RWF</option>
+    <option value="KES-RWF">KES → RWF</option>
+    <option value="JPY-RWF">JPY → RWF</option>
+  </select>
+
+  <label>Condition:</label>
+  <select id="alertCondition">
+    <option value="above">Above</option>
+    <option value="below">Below</option>
+  </select>
+
+  <label>Price:</label>
+  <input type="number" id="alertPrice" placeholder="Enter price in RWF">
+
+  <label>Email (optional):</label>
+  <input type="email" id="alertEmail" placeholder="Enter your email">
+
+  <button onclick="setAlert()">Set Alert</button>
+
+  <div id="alertList" style="margin-top:15px;">
+    <h4>Active Alerts:</h4>
+    <ul id="alertsUl"></ul>
+  </div>
+</div>
+
+<script>
+let chart;
+let alerts = [];
+
+// Market Trends functions
+async function fetchHistorical(base, days){
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - days + 1);
+  const startDate = start.toISOString().split('T')[0];
+  const endDate = end.toISOString().split('T')[0];
+
+  try{
+    const res = await fetch(`https://api.exchangerate.host/timeseries?start_date=${startDate}&end_date=${endDate}&base=${base}&symbols=RWF`);
+    const data = await res.json();
+    const dates = Object.keys(data.rates);
+    const values = dates.map(d => data.rates[d].RWF);
+    return {dates, values};
+  } catch(e){
+    alert("API Error!");
+    return {dates:[], values:[]};
+  }
+}
+
+async function initChart(base, days){
+  const {dates, values} = await fetchHistorical(base, days);
+  const ctx = document.getElementById("trendChart");
+  if(chart) chart.destroy();
+
+  chart = new Chart(ctx,{
+    type:"line",
+    data:{
+      labels:dates,
+      datasets:[{
+        label:`${base} → RWF`,
+        data:values,
+        borderColor:"rgba(122,162,217,1)",
+        backgroundColor:"rgba(122,162,217,0.2)",
+        tension:0.3
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{ tooltip:{mode:'index',intersect:false} },
+      scales:{
+        y:{ beginAtZero:false, ticks:{color:'#fff'} },
+        x:{ ticks:{color:'#ddd'} }
+      }
+    }
+  });
+}
+
+document.getElementById("baseCurrency").addEventListener("change", ()=>{
+  const base = document.getElementById("baseCurrency").value;
+  const days = parseInt(document.getElementById("timeRange").value);
+  initChart(base, days);
+});
+document.getElementById("timeRange").addEventListener("change", ()=>{
+  const base = document.getElementById("baseCurrency").value;
+  const days = parseInt(document.getElementById("timeRange").value);
+  initChart(base, days);
+});
+
+// Initialize chart
+initChart("USD", 7);
+
+// Price Alerts functions
+function setAlert(){
+  const pair = document.getElementById("alertPair").value;
+  const condition = document.getElementById("alertCondition").value;
+  const price = parseFloat(document.getElementById("alertPrice").value);
+  const email = document.getElementById("alertEmail").value;
+
+  if(isNaN(price) || price<=0){
+    alert("Shyiramo price yemewe!");
+    return;
+  }
+
+  const alertObj = {pair, condition, price, email};
+  alerts.push(alertObj);
+  renderAlerts();
+  alert("Alert yashyizweho!");
+}
+
+function renderAlerts(){
+  const ul = document.getElementById("alertsUl");
+  ul.innerHTML = "";
+  alerts.forEach(a=>{
+    const li = document.createElement("li");
+    li.textContent = `${a.pair} → ${a.condition} ${a.price} RWF ${a.email ? ' (Notify: '+a.email+')':''}`;
+    ul.appendChild(li);
+  });
+}
+
+// Check alerts every minute
+setInterval(async ()=>{
+  for(let a of [...alerts]){
+    const [from,to] = a.pair.split("-");
+    const res = await fetch(`https://api.exchangerate.host/latest?base=${from}&symbols=${to}`);
+    const rate = (await res.json()).rates[to];
+    
+    if((a.condition==='above' && rate>a.price) || (a.condition==='below' && rate<a.price)){
+      alert(`⚠️ ${a.pair} is now ${rate.toFixed(2)} RWF (${a.condition} ${a.price})`);
+      alerts = alerts.filter(x=>x!==a); renderAlerts();
+    }
+  }
+}, 60000);
+</script>
+
+
+
+</body>
+</html>
